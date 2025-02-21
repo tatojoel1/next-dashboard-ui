@@ -1,0 +1,153 @@
+import React from "react";
+import { Area, Location, Prisma } from "@prisma/client";
+import { role } from "@/lib/utils";
+import FormContainer from "@/components/FormContainer";
+import prisma from "@/lib/prisma";
+import { ITEM_PER_PAGE } from "@/lib/settings";
+import TableSearch from "@/components/TableSearch";
+import Image from "next/image";
+import Table from "@/components/Table";
+import Pagination from "@/components/Pagination";
+
+type LocationList = Location;
+
+const columns = [
+  {
+    header: "Location name",
+    accessor: "name",
+  },
+  {
+    header: "Location address",
+    accessor: "address",
+  },
+  {
+    header: "City",
+    accessor: "city",
+    className: "hidden lg:table-cell ",
+  },
+  {
+    header: "State",
+    accessor: "state",
+    className: "hidden lg:table-cell ",
+  },
+  {
+    header: "Country",
+    accessor: "country",
+    className: "hidden lg:table-cell ",
+  },
+  {
+    header: "Postal Code",
+    accessor: "postalCode",
+    className: "hidden lg:table-cell ",
+  },
+  {
+    header: "Created At",
+    accessor: "createdAt",
+    className: "hidden lg:table-cell ",
+  },
+  {
+    header: "Updated At",
+    accessor: "updatedAt",
+    className: "hidden lg:table-cell ",
+  },
+  {
+    header: "Actions",
+    accessor: "actions",
+  },
+];
+
+const renderRow = (item: LocationList) => (
+  <tr
+    key={item.id}
+    className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
+  >
+    <td className="flex items-center gap-4 p-4">{item.name}</td>
+    <td className="hidden md:table-cell">{item.address}</td>
+    <td className="hidden md:table-cell">{item.city}</td>
+    <td className="hidden md:table-cell">{item.state}</td>
+    <td className="hidden md:table-cell">{item.country}</td>
+    <td className="hidden md:table-cell">{item.postalCode}</td>
+    <td className="hidden md:table-cell">
+      {new Date(item.createdAt).toLocaleDateString()}
+    </td>
+    <td className="hidden md:table-cell">
+      {new Date(item.createdAt).toLocaleDateString()}
+    </td>
+    <td>
+      <div className="flex items-center gap-2">
+        {role === "admin" && (
+          <>
+            <FormContainer table="location" type="update" data={item} />
+            <FormContainer table="location" type="delete" id={item.id} />
+          </>
+        )}
+      </div>
+    </td>
+  </tr>
+);
+
+const LocationListPage = async ({
+  searchParams,
+}: {
+  searchParams: { [key: string]: string | undefined };
+}) => {
+  const { page, ...queryParams } = searchParams;
+
+  const p = page ? parseInt(page) : 1;
+
+  //URL PARAMS CONDITIONS
+  const query: Prisma.LocationWhereInput = {};
+  if (queryParams) {
+    for (const [key, value] of Object.entries(queryParams)) {
+      if (value !== undefined) {
+        switch (key) {
+          case "search":
+            query.name = { contains: value, mode: "insensitive" };
+            break;
+          default:
+            break;
+        }
+      }
+    }
+  }
+  const [data, count] = await prisma.$transaction([
+    prisma.location.findMany({
+      where: query,
+      take: ITEM_PER_PAGE,
+      skip: ITEM_PER_PAGE * (p - 1),
+    }),
+    prisma.location.count({
+      where: query,
+    }),
+  ]);
+  return (
+    <div className="bg-white p-4 rounded-md flex-1 m-4 mt-3">
+      {/* Top */}
+      <div className="flex item-center justify-between">
+        <h1 className="hidden md:block text-lg font-semibold">All Locations</h1>
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+          <TableSearch />
+          <div className="flex items-center gap-4 self-end">
+            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-bdEclipse">
+              <Image src="/filter.png" width={14} height={14} alt="search" />
+            </button>
+            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-bdEclipse">
+              <Image src="/sort.png" width={14} height={14} alt="search" />
+            </button>
+            {role === "admin" && (
+              <FormContainer table="location" type="create" />
+            )}
+          </div>
+        </div>
+      </div>
+      {/* List */}
+      <div className="">
+        <Table columns={columns} renderRow={renderRow} data={data} />
+      </div>
+      {/* Pagination */}
+      <Pagination page={p} count={count} />
+    </div>
+  );
+};
+
+export default LocationListPage;
